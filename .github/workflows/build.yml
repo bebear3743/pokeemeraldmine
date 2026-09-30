@@ -1,0 +1,60 @@
+name: Build Pokemon Emerald Expansion
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '14.2.Rel1'
+
+      - name: Verify toolchain
+        run: |
+          arm-none-eabi-gcc --version
+          arm-none-eabi-as --version
+          arm-none-eabi-ld --version
+          arm-none-eabi-objcopy --version
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            libpng-dev \
+            pkg-config \
+            python3
+
+      - name: Build ROM
+        run: make -j"$(nproc)"
+
+      - name: Run ROM tests
+        run: make check -j"$(nproc)"
+
+      - name: Upload GBA ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokeemerald-expansion-rom
+          path: pokeemerald.gba
+          if-no-files-found: error
+
+      - name: Upload build metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokeemerald-expansion-build
+          path: |
+            pokeemerald.elf
+            pokeemerald.map
+            pokeemerald.gba
+          if-no-files-found: warn
